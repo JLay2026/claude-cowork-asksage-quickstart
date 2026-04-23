@@ -2,6 +2,21 @@
 
 All notable changes to this quickstart will be documented here. This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.2] — 2026-04-23
+
+Added an offline sideload path for tenants where outbound GitHub access is blocked by Cowork's egress policy.
+
+### Added
+- **Part 3** of `README.md` — "Offline sideload (when egress is blocked)". Full procedure for downloading the `anthropics/knowledge-work-plugins` repo on an unrestricted machine, transferring to the target workstation, extracting to `C:\Program Files\Claude\org-plugins` (or `/opt/claude/org-plugins`), and registering it as a local marketplace.
+- `scripts/sideload-plugins.ps1` — elevated PowerShell script that automates extraction, flattening, and local-marketplace registration with the Claude Code CLI.
+- New section in `plugins.md` — "Network access to github.com is blocked" — with three remediation options (allowlist, sideload, CLI).
+- Two new troubleshooting rows in `README.md` covering the egress error and sideload edge cases.
+
+### Notes
+- The upstream marketplace now contains ~41 plugins; roughly 20 are bundled in the repo (`source: "./folder"`) and install fully offline from a sideload. The remaining ~21 are partner-built plugins with `source: "url"` pointing at other GitHub repos — those still require egress to github.com at install time. The 11 recommended plugins are all in the bundled group.
+- No `claude_desktop_config.json` changes.
+- Egress policy is a tenant-level Cowork setting (Settings → Capabilities → Network egress), not something this quickstart can alter from the client side.
+
 ## [1.1] — 2026-04-23
 
 Added the Anthropic knowledge-work plugin suite to the setup flow.

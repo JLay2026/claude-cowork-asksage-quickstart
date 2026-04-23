@@ -1,8 +1,8 @@
 # Knowledge-Work Plugin Reference
 
-Full list of plugins in the Anthropic [`knowledge-work-plugins`](https://github.com/anthropics/knowledge-work-plugins) marketplace, as of this repo's v1.1 release.
+Full list of plugins in the Anthropic [`knowledge-work-plugins`](https://github.com/anthropics/knowledge-work-plugins) marketplace, as of this repo's v1.2 release.
 
-All 11 are installed by the bundled install scripts in `scripts/`.
+All 11 are installed by the bundled install scripts in `scripts/`. If your Cowork tenant blocks outbound GitHub access, see [Part 3 of the README](./README.md#part-3--offline-sideload-when-egress-is-blocked) for the offline sideload path.
 
 ## Included plugins
 
@@ -44,6 +44,14 @@ These are generic starting points. To make them fit your company:
 4. Share the forked marketplace with your team via GitHub or an internal repo.
 
 Full authoring guide: [github.com/anthropics/knowledge-work-plugins](https://github.com/anthropics/knowledge-work-plugins).
+
+## Network access to github.com is blocked
+
+If Cowork shows `Network access to "github.com" is blocked by egress settings` when you click **Sync** on the Add-marketplace dialog, your tenant's egress allowlist is preventing the hosted marketplace clone. You have three options, in order of preference:
+
+1. **Ask your Owner/Admin to allowlist github.com.** In claude.ai: Settings → Capabilities → Network egress → set to **Package managers only** (which covers github.com/npmjs.com/pypi.org) or add a Custom allowlist containing `github.com`, `codeload.github.com`, and `objects.githubusercontent.com`. Fully quit and relaunch Claude Desktop after the change.
+2. **Sideload from a local folder.** See [Part 3 of the README](./README.md#part-3--offline-sideload-when-egress-is-blocked) for the full procedure. Covers all 11 recommended plugins.
+3. **Use Claude Code CLI on an unrestricted network.** CLI installs don't go through the Cowork egress proxy, but still require GitHub access from the workstation itself.
 
 ## Security note
 
