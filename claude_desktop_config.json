@@ -1,0 +1,29 @@
+{
+  "deploymentMode": "3p",
+  "enterpriseConfig": {
+    "inferenceProvider": "gateway",
+    "inferenceGatewayBaseUrl": "https://api.asksage.ai/server/anthropic",
+    "inferenceGatewayApiKey": "PASTE_YOUR_ASKSAGE_KEY_HERE",
+    "inferenceGatewayAuthScheme": "bearer",
+    "inferenceModels": [
+      "claude-opus-4-7-default",
+      "claude-sonnet-4-5-20250929",
+      "claude-sonnet-4-6-default",
+      "claude-opus-4-6-default",
+      "claude-opus-4-5-20251101",
+      "claude-haiku-4-5-20251001"
+    ],
+    "deploymentOrganizationUuid": "PASTE_YOUR_UUID_HERE",
+    "disableDeploymentModeChooser": true,
+    "disableEssentialTelemetry": true,
+    "disableNonessentialTelemetry": true,
+    "disableNonessentialServices": true
+  },
+  "_cfprefsMigrated": true,
+  "preferences": {
+    "coworkScheduledTasksEnabled": true,
+    "ccdScheduledTasksEnabled": false,
+    "coworkWebSearchEnabled": true,
+    "sidebarMode": "epitaxy"
+  }
+}
