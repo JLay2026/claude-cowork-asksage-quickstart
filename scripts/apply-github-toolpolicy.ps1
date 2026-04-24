@@ -163,7 +163,8 @@ foreach ($t in ($writeTools | Sort-Object -Unique)) { $toolPolicy[$t] = 'ask' }
 $readCount  = $readTools.Count
 $writeCount = $writeTools.Count
 $policyLen  = $toolPolicy.Count
-Write-Info "toolPolicy entries: $policyLen ($readCount allow, $writeCount ask)"
+$policySummary = "$readCount allow, $writeCount ask"
+Write-Info "toolPolicy entries: $policyLen [$policySummary]"
 
 # --- 6. Build managed server entry -----------------------------------------
 $binPath = Join-Path $env:LOCALAPPDATA 'Programs\github-mcp-server\github-mcp-server.exe'
@@ -262,7 +263,8 @@ Write-Ok "=========================================="
 Write-Ok "Applied github toolPolicy successfully."
 Write-Ok "  Config:        $cfgPath"
 Write-Ok "  Backup:        $bak"
-Write-Ok "  Tool policies: $policyCount ($readCount allow / $writeCount ask)"
+$finalSummary = "$readCount allow / $writeCount ask"
+Write-Ok "  Tool policies: $policyCount [$finalSummary]"
 Write-Ok "=========================================="
 Write-Ok ""
 Write-Ok "NEXT STEPS:"
