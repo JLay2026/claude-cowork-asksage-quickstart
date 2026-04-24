@@ -14,13 +14,19 @@
     enterpriseConfig.managedMcpServers with a toolPolicy map of
     <tool_name> -> "allow" | "ask" | "blocked".
 
+    managedMcpServers ONLY supports remote HTTP/SSE servers (not local STDIO
+    binaries) -- the schema requires a 'url' field and rejects entries with
+    'command'/'args'. So this script switches github from the local
+    github-mcp-server.exe over to GitHub's hosted MCP endpoint at
+    https://api.githubcopilot.com/mcp/, authenticating with the same PAT.
+
     This script:
       1. Finds Cowork's active config (Microsoft Store OR direct-install path)
       2. Backs it up with a timestamp
       3. Removes mcpServers.github if present (prevents duplicate server)
       4. Writes a managedMcpServers entry for github with:
-         - The Go binary path and 'stdio' arg
-         - The PAT preserved from the existing config (prompts if missing)
+         - url = https://api.githubcopilot.com/mcp/ (transport: http)
+         - headers.Authorization = Bearer <PAT>
          - A toolPolicy covering all 102 tools in github-mcp-server v1.0.2:
            * 50 read tools      -> "allow"
            * 52 write tools     -> "ask"
@@ -134,9 +140,20 @@ if ($cfg.mcpServers -and $cfg.mcpServers.github -and $cfg.mcpServers.github.env.
         try {
             $mgdArr = $existingMgd | ConvertFrom-Json
             $ghExisting = $mgdArr | Where-Object { $_.name -eq 'github' } | Select-Object -First 1
-            if ($ghExisting -and $ghExisting.env.GITHUB_PERSONAL_ACCESS_TOKEN) {
-                $pat = $ghExisting.env.GITHUB_PERSONAL_ACCESS_TOKEN
-                Write-Info "Reusing PAT from existing managedMcpServers.github ($($pat.Length) chars)"
+            if ($ghExisting) {
+                # New shape: headers.Authorization = 'Bearer <PAT>'
+                if ($ghExisting.headers -and $ghExisting.headers.Authorization) {
+                    $authVal = [string]$ghExisting.headers.Authorization
+                    if ($authVal -match '^Bearer\s+(.+)$') {
+                        $pat = $Matches[1]
+                        Write-Info "Reusing PAT from existing managedMcpServers.github headers ($($pat.Length) chars)"
+                    }
+                }
+                # Old shape (pre-pivot to remote): env.GITHUB_PERSONAL_ACCESS_TOKEN
+                if (-not $pat -and $ghExisting.env -and $ghExisting.env.GITHUB_PERSONAL_ACCESS_TOKEN) {
+                    $pat = $ghExisting.env.GITHUB_PERSONAL_ACCESS_TOKEN
+                    Write-Info "Reusing PAT from existing managedMcpServers.github env ($($pat.Length) chars)"
+                }
             }
         } catch {}
     }
@@ -167,18 +184,18 @@ $policySummary = "$readCount allow, $writeCount ask"
 Write-Info "toolPolicy entries: $policyLen [$policySummary]"
 
 # --- 6. Build managed server entry -----------------------------------------
-$binPath = Join-Path $env:LOCALAPPDATA 'Programs\github-mcp-server\github-mcp-server.exe'
-if (-not (Test-Path $binPath)) {
-    Write-Err "github-mcp-server.exe not found at $binPath. Run .\scripts\install-github-mcp.ps1 first."
-    exit 1
-}
-
+# IMPORTANT: managedMcpServers ONLY supports REMOTE servers (HTTP/SSE).
+# Local STDIO binaries (command/args/env) are not allowed by the schema and are
+# silently rejected by Cowork. We use GitHub's hosted MCP at
+# https://api.githubcopilot.com/mcp/ with PAT in the Authorization header.
+# Per docs: required fields are 'name' and 'url' (https only). Optional:
+# 'transport' (http|sse, default http), 'headers', 'toolPolicy'.
 $githubEntry = [ordered]@{
     name       = 'github'
-    command    = $binPath
-    args       = @('stdio')
-    env        = [ordered]@{
-        GITHUB_PERSONAL_ACCESS_TOKEN = $pat
+    url        = 'https://api.githubcopilot.com/mcp/'
+    transport  = 'http'
+    headers    = [ordered]@{
+        Authorization = "Bearer $pat"
     }
     toolPolicy = $toolPolicy
 }
