@@ -1,19 +1,20 @@
 # Claude Cowork + Ask Sage Quickstart
 
-A beginner-friendly walkthrough to point Claude Desktop at Ask Sage for inference, then layer on the Anthropic knowledge-work plugin suite. Takes about 15 minutes end-to-end.
+A beginner-friendly walkthrough to point Claude Desktop at Ask Sage for inference, layer on the Anthropic knowledge-work plugin suite, and connect a local GitHub MCP server. About 20 minutes end-to-end.
 
 ## What you'll end up with
 
 - Claude Desktop running in Cowork 3P mode, with all inference flowing through your organization's Ask Sage tenant.
 - The six Claude models (Opus 4.7/4.6/4.5, Sonnet 4.6/4.5, Haiku 4.5) available in the model picker.
 - All 11 Anthropic knowledge-work plugins installed — productivity, sales, customer-support, product-management, marketing, legal, finance, data, enterprise-search, bio-research, and cowork-plugin-management.
+- A **local GitHub MCP server** attached to Cowork so Claude can read/write issues, PRs, and repo contents on your behalf.
 - If your tenant blocks outbound network egress (most hardened enterprise Cowork tenants do), you can sideload the plugin suite from a local folder instead of the hosted marketplace. See [Part 3](#part-3--offline-sideload-when-egress-is-blocked).
 
 ## Before you start
 
-- **Claude Desktop** installed from [claude.com/download](https://claude.com/download)
+- **Claude Desktop (Cowork)** installed from [claude.com/download](https://claude.com/download)
 - **Your Ask Sage API key** (a long string of letters and numbers)
-- **A generated UUID** — we'll create one in Step 3
+- **A GitHub Personal Access Token** if you plan to do Part 4 (fine-grained or classic PAT)
 
 ---
 
@@ -27,37 +28,44 @@ A beginner-friendly walkthrough to point Claude Desktop at Ask Sage for inferenc
 ### Step 2 — Turn on Developer Mode
 
 1. In the top menu, click **Help → Troubleshooting → Enable Developer Mode**.
-2. The app will acknowledge the change. You may need to restart it.
+2. The app acknowledges the change. You may need to restart it.
 
-### Step 3 — Generate a UUID
+### Step 3 — Find your config file
 
-A UUID is just a unique ID string. Pick one method:
+> Cowork 3P on Windows ships as two different distributions. They store their config in different places. This trips up almost every first-time user. Read this step carefully.
 
-- **Windows (PowerShell):** open PowerShell and run `[guid]::NewGuid().ToString()`
-- **Mac/Linux (Terminal):** run `uuidgen`
-- **No terminal handy:** use [uuidgenerator.net](https://www.uuidgenerator.net/) and copy the "Version 4" value
+| Install | Config path |
+|---|---|
+| Microsoft Store (most Windows 11 users) | `%LOCALAPPDATA%\Packages\Claude_<suffix>\LocalCache\Roaming\Claude-3p\claude_desktop_config.json` |
+| Direct download (MSI/EXE from claude.com) | `%APPDATA%\Claude-3p\claude_desktop_config.json` |
+| macOS | `~/Library/Application Support/Claude-3p/claude_desktop_config.json` |
+| Linux | `~/.config/Claude-3p/claude_desktop_config.json` |
 
-Copy the result — it looks like `f4a1c8e2-9b3d-4e7f-a6c5-1d8b2e9f3a4c`. You'll paste it in Step 5.
+**The folder is `Claude-3p`, not `Claude`.** Regular Claude Desktop (the one that lives at `%APPDATA%\Claude`) is a different product — editing that folder will not affect Cowork.
 
-### Step 4 — Open the config file
+**Easiest way to find yours on Windows:** run the bundled helper from this repo:
 
-1. In Claude Desktop, open **Settings**.
-2. Click **Developer** in the left sidebar.
-3. Find the **Local MCP servers** section.
-4. Click **Edit Config**.
+```powershell
+.\scripts\find-cowork-config.ps1
+```
 
-Your default text editor opens a file called **`claude_desktop_config.json`**. This is the file you'll replace.
+It inspects the running Claude process (reads its `--user-data-dir` argument) and falls back to a filesystem probe of both locations. It prints the resolved directory — one line, so you can pipe it.
 
-### Step 5 — Replace the file contents
+**The UI-driven way:** in Claude Desktop open **Settings → Developer → Local MCP servers → Edit Config**. Cowork opens the right file in your default editor regardless of which install flavor you have.
 
-1. Select everything in the open file (Ctrl+A on Windows, Cmd+A on Mac) and delete it.
-2. Copy the contents of [`claude_desktop_config.json`](./claude_desktop_config.json) from this repo and paste it in.
-3. Make two edits:
-   - Replace `PASTE_YOUR_ASKSAGE_KEY_HERE` with your Ask Sage API key (keep the quotes around it).
-   - Replace `PASTE_YOUR_UUID_HERE` with the UUID you generated in Step 3 (keep the quotes).
-4. **Save** the file (Ctrl+S / Cmd+S) and close the editor.
+### Step 4 — Replace the config contents
 
-### Step 6 — Restart Claude Desktop
+Option A — **helper script (Windows, recommended).** The script prompts for your Ask Sage key as a SecureString (input is masked and plaintext never touches a shell variable or log file), renders the template, and writes a UTF-8-no-BOM config to the correct Cowork-3p path. It also runs a 10-check validation pass.
+
+```powershell
+.\scripts\deploy-config.ps1
+```
+
+Option B — **manual.** Open the config file from Step 3, replace its entire contents with the text of [`claude_desktop_config.json`](./claude_desktop_config.json) from this repo, then replace `PASTE_YOUR_ASKSAGE_KEY_HERE` with your Ask Sage API key (keep the quotes). Save as UTF-8 without BOM.
+
+> v1.3 change: the `deploymentOrganizationUuid` field was removed. It's not required for individual 3P gateway setups, and leaving it blank or wrong caused silent provisioning failures for some users.
+
+### Step 5 — Restart Claude Desktop
 
 Fully quit Claude Desktop and reopen it. It must be a **complete quit**, not just closing the window:
 
@@ -66,7 +74,7 @@ Fully quit Claude Desktop and reopen it. It must be a **complete quit**, not jus
 
 When it relaunches, it should go straight into Cowork mode (no sign-in screen).
 
-### Step 7 — Test it
+### Step 6 — Test it
 
 1. Start a new chat.
 2. Open the model picker at the top. You should see the six Claude models from the config.
@@ -261,6 +269,90 @@ For a scripted one-shot sideload, see [`scripts/sideload-plugins.ps1`](./scripts
 
 ---
 
+## Part 4 — Connect a local GitHub MCP server
+
+Once inference is live and plugins are installed, you can give Claude Cowork direct read/write access to GitHub (issues, PRs, repo contents, code search) via a **Local MCP server**.
+
+### Why the GitHub-official Go binary (not the npm one)
+
+- `@modelcontextprotocol/server-github` (npm) is deprecated. The first time Cowork launches it, `npx -y` downloads ~150 MB of Node modules, which blows past Cowork's 60-second MCP `initialize` handshake and times out.
+- GitHub now publishes an official, self-contained Go binary — [`github/github-mcp-server`](https://github.com/github/github-mcp-server). No Node, no dependencies, ~7 MB zip, sub-second startup. This is what you want.
+
+### Step 1 — Create a GitHub Personal Access Token
+
+1. Go to [github.com/settings/tokens](https://github.com/settings/tokens) (classic) or [settings/personal-access-tokens](https://github.com/settings/personal-access-tokens) (fine-grained).
+2. Grant the scopes that match what you want Claude to do. Common starters:
+   - **Classic:** `repo`, `read:org`, `read:user`, `workflow` if you want Actions reads.
+   - **Fine-grained:** pick the repos you want reachable, then grant Contents/Issues/Pull requests read or write.
+3. Copy the token — you'll paste it in the next step. GitHub only shows it once.
+
+### Step 2 — Install the binary and update your config
+
+**Windows (recommended — helper script):**
+
+```powershell
+.\scripts\install-github-mcp.ps1
+```
+
+The script:
+1. Downloads the latest `github-mcp-server` release for Windows x64 to `%LOCALAPPDATA%\Programs\github-mcp-server\`.
+2. Extracts `github-mcp-server.exe` and smoke-tests `--help`.
+3. Prompts for your PAT as a SecureString (input is masked).
+4. Finds your active Cowork config via `find-cowork-config.ps1`.
+5. Injects (or replaces) an `mcpServers.github` block under the **top-level** `mcpServers` key.
+6. Writes the config as UTF-8 without BOM and scrubs the PAT from memory.
+
+Pin a specific version with `-Version v1.0.2`. Skip the config rewrite (download only) with `-SkipConfigUpdate`.
+
+**macOS/Linux (manual):**
+
+```bash
+# Pick the right asset for your arch: Darwin_arm64, Darwin_x86_64, Linux_x86_64, etc.
+VER="v1.0.2"
+curl -L -o /tmp/gh-mcp.tar.gz \
+  "https://github.com/github/github-mcp-server/releases/download/${VER}/github-mcp-server_$(uname -s)_$(uname -m).tar.gz"
+mkdir -p "$HOME/.local/share/github-mcp-server"
+tar -xzf /tmp/gh-mcp.tar.gz -C "$HOME/.local/share/github-mcp-server"
+
+# Edit the Cowork 3P config at the path for your OS (see Step 1 of Part 1),
+# and add this block at the TOP LEVEL — NOT nested under enterpriseConfig:
+```
+
+```json
+{
+  "deploymentMode": "3p",
+  "enterpriseConfig": { "...unchanged...": true },
+  "mcpServers": {
+    "github": {
+      "command": "/Users/you/.local/share/github-mcp-server/github-mcp-server",
+      "args": ["stdio"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_..."
+      }
+    }
+  }
+}
+```
+
+### Step 3 — Restart and verify
+
+1. Fully quit Claude Desktop (system tray → Quit on Windows; Cmd+Q on macOS).
+2. Relaunch. Open **Settings → Developer → Local MCP servers**. You should see `github` listed with a green/connected indicator.
+3. In a new chat, ask: **"List my 5 most recently updated GitHub repos."** Claude should call the `github` MCP tool and return real repo names.
+
+### Appendix — Managed vs Local MCP servers
+
+Cowork has two MCP configuration keys. They look similar, but one of them **only works for org admins with signed policy**.
+
+| Layer | Config key | Who controls it | Use it when |
+|---|---|---|---|
+| **Local MCP servers** (end-user) | **top-level** `mcpServers` | You, on your own machine | You want to add a personal MCP server (GitHub, Notion, filesystem, etc.) — this is what Part 4 uses. |
+| **Managed MCP servers** (admin-only) | `enterpriseConfig.managedMcpServers` | Org admin via MDM / signed configuration | Your org IT wants to fleet-deploy a remote MCP server to every user. **Cowork silently ignores this key when it's written by an end user** — it only activates when delivered through a signed enterprise channel. The Managed panel in Settings shows a 🔒 icon when you don't have the policy signature. |
+
+**Symptom to remember:** if you add a server to `enterpriseConfig.managedMcpServers`, restart Claude, and the Local MCP servers panel shows "No servers added" while the Managed panel shows the lock icon — you're not an admin; move the block to top-level `mcpServers`.
+
+---
+
 ## If something goes wrong
 
 ### Inference setup
@@ -268,8 +360,9 @@ For a scripted one-shot sideload, see [`scripts/sideload-plugins.ps1`](./scripts
 | Problem | Most likely fix |
 |---|---|
 | App shows the normal sign-in screen | The config file didn't save or has a typo. Reopen it via Settings → Developer → Edit Config, check for missing quotes or commas. |
+| "My edits keep disappearing after restart" | You edited `%APPDATA%\Claude-3p` but you have the Microsoft Store build, which lives under `%LOCALAPPDATA%\Packages\Claude_<suffix>\LocalCache\Roaming\Claude-3p`. Run `.\scripts\find-cowork-config.ps1` to confirm the right path. |
 | Model picker is empty | The base URL is wrong, or your key doesn't have access. Double-check the URL is exactly `https://api.asksage.ai/server/anthropic` with no trailing slash. |
-| "Unauthorized" or "401" error | The API key is wrong, missing, or has extra spaces. Paste it again carefully. |
+| "Unauthorized" or "401" error | The API key is wrong, missing, or has extra spaces. Paste it again carefully — or re-run `.\scripts\deploy-config.ps1` to redeploy with a fresh SecureString prompt. |
 | "Model not found" error | That model isn't enabled on your Ask Sage tenant. Remove it from the `inferenceModels` list and try another. |
 | Changes aren't taking effect | You didn't fully quit before reopening. Quit from the system tray / Dock, not just the window. |
 
@@ -285,11 +378,23 @@ For a scripted one-shot sideload, see [`scripts/sideload-plugins.ps1`](./scripts
 | Sideload: "No marketplace found at path" | The `.claude-plugin\marketplace.json` file isn't at the root of your org-plugins folder. You probably skipped the `Move-Item` step that flattens the extracted ZIP. Re-run Step 2. |
 | Sideload: partner plugins still fail | Expected — plugins with `url` sources in marketplace.json still need outbound GitHub access. Either allowlist github.com or skip those plugins; the 11 recommended ones are all bundled locally. |
 
+### GitHub MCP (Part 4)
+
+| Problem | Most likely fix |
+|---|---|
+| Local MCP servers panel shows "No servers added" after restart | You put the GitHub block under `enterpriseConfig.managedMcpServers` instead of top-level `mcpServers`. Only the top-level key takes effect for end users. Move the block. |
+| Managed MCP servers panel is locked (🔒) | Expected for non-admins. See the appendix in Part 4 — this panel only activates under signed MDM policy. |
+| `initialize` handshake times out after 60s | You're running the deprecated npm `@modelcontextprotocol/server-github` via `npx -y`. Switch to the Go binary (Part 4 Step 2). |
+| "401 Unauthorized" from github-mcp-server | Bad or expired PAT. Regenerate it on GitHub and re-run `.\scripts\install-github-mcp.ps1`. |
+| `github-mcp-server.exe` not found on PATH | The binary lives at `%LOCALAPPDATA%\Programs\github-mcp-server\github-mcp-server.exe` and is referenced by absolute path in the config — PATH doesn't matter. If the file is missing, re-run the installer. |
+
 ---
 
-## Keep your key safe
+## Keep your secrets safe
 
-Treat your Ask Sage API key like a password. Don't commit the config file to Git, don't email it, and if you think it's been exposed, generate a new key in the Ask Sage console and paste that one instead.
+- Treat your Ask Sage API key and GitHub PAT like passwords. Don't commit the config file to Git, don't email it.
+- The deploy and install scripts in this repo prompt with `Read-Host -AsSecureString`, keep the plaintext only in an unmanaged BSTR for the duration of one write call, and scrub it with `ZeroFreeBSTR`. Use them over hand-editing whenever practical.
+- If you think a secret has been exposed: rotate the Ask Sage key in the Ask Sage console, revoke the GitHub PAT at [github.com/settings/tokens](https://github.com/settings/tokens), and re-run the deploy scripts to load fresh ones.
 
 ---
 
@@ -298,6 +403,6 @@ Treat your Ask Sage API key like a password. Don't commit the config file to Git
 This repo uses semantic version tags. To pin your team to a tested baseline, reference a release tag instead of `main`:
 
 - Latest: [releases/latest](https://github.com/JLay2026/claude-cowork-asksage-quickstart/releases/latest)
-- Tag-specific: [releases/tag/v1.2](https://github.com/JLay2026/claude-cowork-asksage-quickstart/releases/tag/v1.2)
+- Tag-specific: [releases/tag/v1.3](https://github.com/JLay2026/claude-cowork-asksage-quickstart/releases/tag/v1.3)
 
 See [CHANGELOG.md](./CHANGELOG.md) for what's changed between versions.
