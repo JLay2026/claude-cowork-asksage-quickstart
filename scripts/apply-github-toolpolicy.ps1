@@ -190,8 +190,11 @@ Write-Info "toolPolicy entries: $policyLen [$policySummary]"
 # https://api.githubcopilot.com/mcp/ with PAT in the Authorization header.
 # Per docs: required fields are 'name' and 'url' (https only). Optional:
 # 'transport' (http|sse, default http), 'headers', 'toolPolicy'.
+# NOTE: Cowork's org-provisioned 'engineering' plugin claims the bare name
+# 'github' and shadows any other registration with a no-op to prevent SDK
+# double-load. Use a distinct name so our entry actually loads.
 $githubEntry = [ordered]@{
-    name       = 'github'
+    name       = 'github-direct'
     url        = 'https://api.githubcopilot.com/mcp/'
     transport  = 'http'
     headers    = [ordered]@{
@@ -218,8 +221,8 @@ if ($existingRaw) {
         $mgdArray = @($existingRaw)
     }
 }
-# Remove any prior github entry
-$mgdArray = @($mgdArray | Where-Object { $_.name -ne 'github' })
+# Remove any prior github / github-direct entry (covers pre-rename builds)
+$mgdArray = @($mgdArray | Where-Object { $_.name -ne 'github' -and $_.name -ne 'github-direct' })
 # Append our new one (convert hashtable to PSCustomObject for consistent shape)
 $mgdArray += [PSCustomObject]$githubEntry
 
