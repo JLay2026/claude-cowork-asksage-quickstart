@@ -139,7 +139,7 @@ if ($cfg.mcpServers -and $cfg.mcpServers.github -and $cfg.mcpServers.github.env.
     if ($existingMgd -is [string]) {
         try {
             $mgdArr = $existingMgd | ConvertFrom-Json
-            $ghExisting = $mgdArr | Where-Object { $_.name -eq 'github' } | Select-Object -First 1
+            $ghExisting = $mgdArr | Where-Object { $_.name -eq 'github-direct' -or $_.name -eq 'github' } | Select-Object -First 1
             if ($ghExisting) {
                 # New shape: headers.Authorization = 'Bearer <PAT>'
                 if ($ghExisting.headers -and $ghExisting.headers.Authorization) {
@@ -264,7 +264,7 @@ $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 try {
     $verify = Get-Content $cfgPath -Raw | ConvertFrom-Json
     $verifiedMgd = $verify.enterpriseConfig.managedMcpServers | ConvertFrom-Json
-    $verifiedGh  = $verifiedMgd | Where-Object { $_.name -eq 'github' } | Select-Object -First 1
+    $verifiedGh  = $verifiedMgd | Where-Object { $_.name -eq 'github-direct' } | Select-Object -First 1
     if (-not $verifiedGh) { throw 'github entry missing after write' }
     $policyCount = ($verifiedGh.toolPolicy.PSObject.Properties.Name).Count
 } catch {
