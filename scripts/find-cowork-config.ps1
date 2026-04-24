@@ -37,14 +37,17 @@
 #>
 
 [CmdletBinding()]
-param(
-    [switch]$Verbose
-)
+param()
+
+# NOTE: Do not declare a custom -Verbose switch here. [CmdletBinding()] already
+# provides -Verbose as a built-in common parameter; redeclaring it triggers
+# "A parameter with the name 'Verbose' was defined multiple times for the
+# command." Consumers pass -Verbose normally and $VerbosePreference is honored.
 
 $ErrorActionPreference = 'Stop'
 
 function Write-Info($msg) {
-    if ($Verbose -or $VerbosePreference -ne 'SilentlyContinue') {
+    if ($VerbosePreference -ne 'SilentlyContinue') {
         Write-Host "[find-cowork-config] $msg" -ForegroundColor DarkGray
     }
 }

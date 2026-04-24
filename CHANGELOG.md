@@ -2,6 +2,19 @@
 
 All notable changes to this quickstart will be documented here. This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.3.1] — 2026-04-24
+
+Documentation patch plus one script bugfix.
+
+### Fixed
+- `scripts/find-cowork-config.ps1` — removed custom `[switch]$Verbose` parameter. `[CmdletBinding()]` already provides `-Verbose` as a built-in common parameter, so redeclaring it threw `"A parameter with the name 'Verbose' was defined multiple times for the command"` the moment any caller (including `install-github-mcp.ps1`) invoked the script. The finder now relies on the built-in `-Verbose` switch and `$VerbosePreference`. No behavior change for users who weren't passing `-Verbose` explicitly.
+
+### Added
+- **Part 4 → Step 4: Tool permissions** in `README.md`. Documents the one-time Cowork UI toggle to flip the GitHub server's **Read-only tools (23)** category from **Needs approval** to **Always allow**, so teammates stop getting a wall of prompts on every `get_commit` / `get_file_contents` call. Clarifies that this setting lives in Cowork's own settings DB, not in `claude_desktop_config.json` — and that the `autoApprove` convention used by some other MCP clients is silently ignored by Cowork.
+- Recommended permission baseline table (Read-only → Always allow, Write → Needs approval, Destructive → Never allow).
+- Documented `GITHUB_READ_ONLY=1` and `GITHUB_TOOLSETS` env vars as belt-and-suspenders options for hiding write tools at the protocol level.
+- Two new troubleshooting rows: "Claude prompts for approval on every single read" (points at Step 4) and "Permission set by your admin / dropdown is greyed out" (clarifies the managed-Connectors page vs the Local MCP servers page).
+
 ## [1.3] — 2026-04-23
 
 Corrects the Windows config-file path for Cowork 3P (Microsoft Store virtualization), adds a Local MCP server setup using GitHub's official Go binary, and introduces SecureString-based deployment scripts.

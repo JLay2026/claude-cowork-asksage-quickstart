@@ -340,6 +340,40 @@ tar -xzf /tmp/gh-mcp.tar.gz -C "$HOME/.local/share/github-mcp-server"
 2. Relaunch. Open **Settings → Developer → Local MCP servers**. You should see `github` listed with a green/connected indicator.
 3. In a new chat, ask: **"List my 5 most recently updated GitHub repos."** Claude should call the `github` MCP tool and return real repo names.
 
+### Step 4 — Tool permissions (stop the approval prompts)
+
+Out of the box, Cowork prompts you to approve every tool call. For a server like `github` with 23 read-only tools (get commit, get file contents, list branches, get release, etc.), that turns into a wall of prompts during normal use. The fix is a one-time category toggle.
+
+> **Where this setting lives:** not in `claude_desktop_config.json`. Cowork stores per-tool approval preferences in its own settings database, keyed per MCP server. You change it in the UI, not the JSON. (Some other MCP clients support an `autoApprove` array in the server config — Cowork does not. Don't add that field; it's silently ignored.)
+
+**Set auto-approval for reads:**
+
+1. Open **Settings → Developer → Local MCP servers**.
+2. Click the `github` entry to expand its tool list.
+3. Find the **Read-only tools (23)** group header.
+4. On the right side of that header, click the dropdown (it defaults to **Needs approval**) and select **Always allow**.
+
+That single toggle flips every read tool to auto-approve at once. Write tools stay on **Needs approval** — which is what you want, so commits, PR merges, release publishes, and issue edits still prompt before running.
+
+**Recommended baseline for the GitHub server:**
+
+| Category | Setting | Why |
+|---|---|---|
+| Read-only tools | **Always allow** | Silent reads for `get_commit`, `get_file_contents`, `list_*`, `search_*`, etc. No prompt fatigue. |
+| Write tools | **Needs approval** | Still ask before `create_pull_request`, `merge_pull_request`, `create_release`, `delete_*`, commit pushes. |
+| Destructive tools (if the category exists) | **Never allow** | Opt-in only. Re-enable case-by-case for a specific workflow. |
+
+**Belt-and-suspenders option:** if you want to *also* hide write tools at the protocol level so the model can't call them even when they'd prompt, set `GITHUB_READ_ONLY=1` in the `env` block of the `github` server. This is a server-side flag honored by `github-mcp-server` — the write tools never show up in the tool list at all. Useful when teammates share a workstation or when you're still feeling out what the agent does with repo access.
+
+```json
+"env": {
+  "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_...",
+  "GITHUB_READ_ONLY": "1"
+}
+```
+
+**Scope the toolset** with `GITHUB_TOOLSETS` (comma-separated: `repos`, `issues`, `pull_requests`, `code_security`, `experiments`, `all`) if you want to expose, say, only `repos,issues` and hide the rest.
+
 ### Appendix — Managed vs Local MCP servers
 
 Cowork has two MCP configuration keys. They look similar, but one of them **only works for org admins with signed policy**.
@@ -383,6 +417,8 @@ Cowork has two MCP configuration keys. They look similar, but one of them **only
 | Problem | Most likely fix |
 |---|---|
 | Local MCP servers panel shows "No servers added" after restart | You put the GitHub block under `enterpriseConfig.managedMcpServers` instead of top-level `mcpServers`. Only the top-level key takes effect for end users. Move the block. |
+| Claude prompts for approval on every single read (get file, get commit, list branches…) | You didn't set the read-only category to **Always allow**. See Part 4 Step 4 — flip **Settings → Developer → Local MCP servers → github → Read-only tools (23)** from **Needs approval** to **Always allow**. One-time, per server. |
+| "Permission set by your admin" / dropdown is greyed out | You're looking at the wrong page. The [Connectors] section treats servers as org-managed and locks per-tool toggles. Your script-installed server lives under **Settings → Developer → Local MCP servers** — the toggles there are user-editable. Uninstall the greyed-out Connectors entry if it's creating confusion. |
 | Managed MCP servers panel is locked (🔒) | Expected for non-admins. See the appendix in Part 4 — this panel only activates under signed MDM policy. |
 | `initialize` handshake times out after 60s | You're running the deprecated npm `@modelcontextprotocol/server-github` via `npx -y`. Switch to the Go binary (Part 4 Step 2). |
 | "401 Unauthorized" from github-mcp-server | Bad or expired PAT. Regenerate it on GitHub and re-run `.\scripts\install-github-mcp.ps1`. |
