@@ -8,7 +8,7 @@
 .DESCRIPTION
     Why this exists:
     On Cowork's 3P developer build, top-level user-added mcpServers do not
-    support per-tool approval overrides via the JSON config — and the
+    support per-tool approval overrides via the JSON config -- and the
     Customize-page tool-permission dropdowns are greyed out for LOCAL DEV
     servers on some builds. The documented mechanism that DOES work is
     enterpriseConfig.managedMcpServers with a toolPolicy map of
@@ -24,7 +24,7 @@
          - A toolPolicy covering all 102 tools in github-mcp-server v1.0.2:
            * 50 read tools      -> "allow"
            * 52 write tools     -> "ask"
-      5. Writes UTF-8 without BOM (required — Cowork's parser rejects BOM)
+      5. Writes UTF-8 without BOM (required -- Cowork's parser rejects BOM)
       6. Prints a verification summary
 
     Tool classification source:
@@ -227,11 +227,11 @@ if ($cfg.mcpServers -and $cfg.mcpServers.PSObject.Properties['github']) {
     }
 }
 
-# --- 8. Serialize and write (UTF-8 NO BOM — Cowork requires this) ----------
+# --- 8. Serialize and write (UTF-8 NO BOM -- Cowork requires this) ----------
 $finalJson = $cfg | ConvertTo-Json -Depth 20
 
 if ($DryRun) {
-    Write-Warn "DRY RUN — config would be written but is not. Preview below:"
+    Write-Warn "DRY RUN -- config would be written but is not. Preview below:"
     Write-Host ""
     Write-Host $finalJson
     exit 0
